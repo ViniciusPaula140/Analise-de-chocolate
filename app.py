@@ -1,4 +1,6 @@
 import streamlit as st
+import pandas as pd
+import matplotlib.pyplot as plt
 
 # 1. CONFIGURAÇÃO DA PÁGINA
 st.set_page_config(
@@ -7,7 +9,22 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# 2. CSS MÁGICO (Ajustes de espaçamento, alinhamento e contraste)
+# 2. CARREGAMENTO DOS DADOS (Com Cache Inteligente)
+@st.cache_data
+def carregar_dados():
+    # O Streamlit percebe sozinho quando você atualiza esse arquivo e recarrega os dados.
+    # (Se preferir puxar via web no futuro, pode trocar por: "https://raw.githubusercontent.com/ViniciusPaula140/Analise-de-chocolate/main/dataset_projeto_pascoa.xlsx")
+    df = pd.read_excel("dataset_projeto_pascoa.xlsx")
+    df['Data'] = pd.to_datetime(df['Data'])
+    return df
+
+try:
+    df_macro = carregar_dados()
+except Exception as e:
+    st.error(f"⚠️ Arquivo 'dataset_projeto_pascoa.xlsx' não encontrado. Coloque-o na mesma pasta do app.py")
+    st.stop()
+
+# 3. CSS MÁGICO (Ajustes de espaçamento, alinhamento e contraste)
 st.markdown("""
     <style>
     .block-container {
@@ -112,7 +129,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 3. BARRA LATERAL (Filtros)
+# 4. BARRA LATERAL (Filtros)
 with st.sidebar:
     st.header("🍫 Filtros do Dashboard")
     st.markdown("---")
@@ -123,7 +140,14 @@ with st.sidebar:
     st.markdown("---")
     st.info("💡 Pode minimizar este menu clicando no 'X' ou na setinha ( > ) no canto superior esquerdo.")
 
-# 4. TOPO PRINCIPAL: O Banner e os KPIs
+# LÓGICA DE FILTRAGEM (Alimentando os Gráficos)
+if ano_selecionado == "Todos os anos":
+    df_filtrado = df_macro.copy()
+else:
+    df_filtrado = df_macro[df_macro['Data'].dt.year == int(ano_selecionado)].copy()
+
+
+# 5. TOPO PRINCIPAL: O Banner e os KPIs
 st.markdown('<div class="titulo-dashboard">Análise Logística e de Custos: Especial Páscoa</div>', unsafe_allow_html=True)
 
 # Divide o topo em 3 colunas para os cartões
@@ -138,7 +162,7 @@ with k3:
 # Aplica a nova linha divisória mais escura
 st.markdown("<hr class='linha-divisoria'>", unsafe_allow_html=True)
 
-# 5. A GRANDE DIVISÃO DOS GRÁFICOS: Esquerda e Direita
+# 6. A GRANDE DIVISÃO DOS GRÁFICOS: Esquerda e Direita
 col_esq, col_dir = st.columns(2, gap="large")
 
 # ================= METADE ESQUERDA =================
@@ -146,9 +170,43 @@ with col_esq:
     # QUADRANTE 1: Custos e Insumos
     st.markdown('<div class="cabecalho-chocolate">CUSTOS E INSUMOS</div>', unsafe_allow_html=True)
     c1, c2 = st.columns(2)
+    
     with c1:
         st.markdown('<div class="sub-caramelo">Selic, Dólar e Inflação</div>', unsafe_allow_html=True)
-        st.markdown('<div class="grafico-falso">[Espaço do Gráfico 1]</div>', unsafe_allow_html=True)
+        
+        # INJEÇÃO DO GRÁFICO 1 (Dual-Axis Plot)
+        # Ocultamos a div falsa e criamos a figura Matplotlib que se encaixará no container
+        fig1, ax1 = plt.subplots(figsize=(6, 4))
+        
+        # --- EIXO PRIMÁRIO (Esquerda) ---
+        linha_dolar = ax1.plot(df_filtrado['Data'], df_filtrado['Dolar'], color='#27ae60', linewidth=2, linestyle='--', label='Dólar (R$)')
+        linha_selic = ax1.plot(df_filtrado['Data'], df_filtrado['Selic'], color='#8e44ad', linewidth=2, linestyle=':', label='Selic (%)')
+        
+        ax1.set_ylabel('Cotação (R$) / Selic (%)', color='#2c3e50', fontsize=9, fontweight='bold')
+        ax1.tick_params(axis='y', labelcolor='#2c3e50', labelsize=8)
+        ax1.tick_params(axis='x', labelsize=8)
+        ax1.grid(axis='y', linestyle='--', alpha=0.3)
+        fig1.autofmt_xdate(rotation=45) # Inclina as datas para não embolarem
+        
+        # --- EIXO SECUNDÁRIO (Direita) ---
+        ax2 = ax1.twinx()
+        linha_inflacao = ax2.plot(df_filtrado['Data'], df_filtrado['Inflacao_Alimentos'], color='#e74c3c', linewidth=3, linestyle='-', label='Inflação (%)')
+        ax2.set_ylabel('Inflação (%)', color='#e74c3c', fontsize=9, fontweight='bold')
+        ax2.tick_params(axis='y', labelcolor='#e74c3c', labelsize=8)
+        
+        # --- CONSOLIDAÇÃO DAS LEGENDAS ---
+        linhas = linha_dolar + linha_selic + linha_inflacao
+        labels = [l.get_label() for l in linhas]
+        ax1.legend(linhas, labels, loc='upper center', bbox_to_anchor=(0.5, -0.2), ncol=3, frameon=False, fontsize=8)
+        
+        # Transparência para casar com a cor do Dashboard
+        fig1.patch.set_alpha(0)
+        ax1.patch.set_alpha(0)
+        
+        # Renderiza no Streamlit ocupando toda a largura da coluna
+        st.pyplot(fig1, use_container_width=True)
+
+
     with c2:
         st.markdown('<div class="sub-caramelo">Insumos x Cenário Macro</div>', unsafe_allow_html=True)
         st.markdown('<div class="grafico-falso">[Espaço do Gráfico 2]</div>', unsafe_allow_html=True)
