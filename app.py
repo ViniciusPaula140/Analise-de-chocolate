@@ -176,7 +176,6 @@ with col_esq:
         
         if not df_plot2.empty:
             alimentos = ['Cacau', 'Acucar', 'Leite', 'Soja', 'Milho', 'Trigo']
-            # Tratamento de segurança contra dados nulos na série temporal
             df_plot2[alimentos] = df_plot2[alimentos].ffill().bfill()
             
             for item in alimentos:
@@ -219,7 +218,50 @@ with col_esq:
     c3, c4 = st.columns(2)
     with c3:
         st.markdown('<div class="sub-caramelo">Cacau X Dólar</div>', unsafe_allow_html=True)
-        st.markdown('<div class="grafico-falso">[Espaço do Gráfico 3]</div>', unsafe_allow_html=True)
+        
+        # INJEÇÃO DO GRÁFICO 3: CHOQUE DUPLO (DÓLAR VS CACAU)
+        fig3, ax3_1 = plt.subplots(figsize=(6, 4))
+        df_plot3 = df_filtrado.copy()
+        
+        if not df_plot3.empty:
+            df_plot3[['Dolar', 'Cacau']] = df_plot3[['Dolar', 'Cacau']].ffill().bfill()
+            
+            # Aplica o Time Windowing para limitar visualmente se os dados forem muito longos
+            df_plot3 = df_plot3.tail(15)
+            eixo_x = df_plot3['Data'].dt.strftime('%m/%y')
+            
+            # --- EIXO PRIMÁRIO (Y1): DÓLAR ---
+            bars = ax3_1.bar(eixo_x, df_plot3['Dolar'], color='skyblue', alpha=0.7, label='Dólar (R$)')
+            ax3_1.set_ylabel('Taxa de Câmbio (R$)', color='#2980b9', fontsize=9, fontweight='bold')
+            ax3_1.tick_params(axis='y', labelcolor='#2980b9', labelsize=8)
+            ax3_1.tick_params(axis='x', labelsize=8, rotation=45)
+            
+            # Injeção de Data Labels nas barras
+            for bar in bars:
+                height = bar.get_height()
+                ax3_1.text(bar.get_x() + bar.get_width()/2., height + 0.05,
+                           f'{height:.1f}', ha='center', va='bottom', fontsize=7, fontweight='bold', color='#1a5276')
+                           
+            # --- EIXO SECUNDÁRIO (Y2): CACAU ---
+            ax3_2 = ax3_1.twinx()
+            line = ax3_2.plot(eixo_x, df_plot3['Cacau'], color='brown', marker='o', linewidth=2, label='Cacau (USD)')
+            ax3_2.set_ylabel('Cacau (USD)', color='brown', fontsize=9, fontweight='bold')
+            ax3_2.tick_params(axis='y', labelcolor='brown', labelsize=8)
+            
+            ax3_1.grid(axis='y', linestyle='--', alpha=0.3)
+            
+            # Legendas consolidadas na parte inferior
+            linhas_legenda = [bars[0], line[0]]
+            labels_legenda = ['Dólar (R$)', 'Cacau (USD)']
+            ax3_1.legend(linhas_legenda, labels_legenda, loc='upper center', bbox_to_anchor=(0.5, -0.25), ncol=2, frameon=False, fontsize=8)
+            
+            fig3.patch.set_alpha(0)
+            ax3_1.patch.set_alpha(0)
+            ax3_2.patch.set_alpha(0)
+            st.pyplot(fig3, use_container_width=True)
+        else:
+            st.info("Sem dados disponíveis.")
+
     with c4:
         st.markdown('<div class="sub-caramelo">Efeito Dominó Petróleo</div>', unsafe_allow_html=True)
         st.markdown('<div class="grafico-falso">[Espaço do Gráfico 4]</div>', unsafe_allow_html=True)
@@ -239,9 +281,7 @@ with col_dir:
             scaler = MinMaxScaler()
             cols_lag = ['Cacau_12M_Atras', 'Soja_12M_Atras', 'Milho_12M_Atras', 'Trigo_12M_Atras']
             
-            # Tratamento de Erro Crítico: Preenche NaNs para impedir que o Scikit-Learn quebre o dashboard
             df_plot5[cols_lag] = df_plot5[cols_lag].ffill().bfill()
-            
             df_plot5[[c + '_Norm' for c in cols_lag]] = scaler.fit_transform(df_plot5[cols_lag])
             
             ax5.plot(df_plot5['Data'], df_plot5['Cacau_12M_Atras_Norm'], color='#7e5109', linewidth=3, label='Cacau (Premium)')
@@ -272,9 +312,7 @@ with col_dir:
             scaler6 = MinMaxScaler()
             cols_gatilho = ['Cacau_12M_Atras', 'Leite']
             
-            # Tratamento de Erro Crítico: Preenche NaNs para impedir que o Scikit-Learn quebre o dashboard
             df_plot6[cols_gatilho] = df_plot6[cols_gatilho].ffill().bfill()
-            
             df_plot6[['Cacau_Norm', 'Leite_Norm']] = scaler6.fit_transform(df_plot6[cols_gatilho])
             
             df_plot6['Pressao_Dupla'] = df_plot6['Cacau_Norm'] + df_plot6['Leite_Norm']
