@@ -1,7 +1,8 @@
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
-import seaborn as sns 
+import seaborn as sns
+from sklearn.preprocessing import MinMaxScaler # <-- Importação adicionada
 
 # 1. CONFIGURAÇÃO DA PÁGINA
 st.set_page_config(
@@ -13,18 +14,15 @@ st.set_page_config(
 # 2. CARREGAMENTO DOS DADOS (Local Seguro)
 @st.cache_data
 def carregar_dados():
-    # Lê os arquivos diretamente da mesma pasta onde está o app.py
     df_macro = pd.read_excel("dataset_projeto_pascoa.xlsx")
     df_macro['Data'] = pd.to_datetime(df_macro['Data'])
-    
     df_chocolates = pd.read_excel("base_completa_chocolates.xlsx")
-    
     return df_macro, df_chocolates
 
 try:
     df_macro, df_chocolates = carregar_dados()
 except Exception as e:
-    st.error(f"⚠️ Erro ao carregar os dados locais: {e}. Verifique se os arquivos .xlsx estão na mesma pasta do app.py.")
+    st.error(f"⚠️ Erro ao carregar os dados locais: {e}. Verifique se os arquivos .xlsx estão na mesma pasta.")
     st.stop()
 
 # 3. CSS MÁGICO
@@ -149,7 +147,6 @@ with col_esq:
     
     with c1:
         st.markdown('<div class="sub-caramelo">Selic, Dólar e Inflação</div>', unsafe_allow_html=True)
-        # GRÁFICO 1
         fig1, ax1 = plt.subplots(figsize=(6, 4))
         linha_dolar = ax1.plot(df_filtrado['Data'], df_filtrado['Dolar'], color='#27ae60', linewidth=2, linestyle='--', label='Dólar (R$)')
         linha_selic = ax1.plot(df_filtrado['Data'], df_filtrado['Selic'], color='#8e44ad', linewidth=2, linestyle=':', label='Selic (%)')
@@ -174,26 +171,24 @@ with col_esq:
 
     with c2:
         st.markdown('<div class="sub-caramelo">Insumos x Cenário Macro</div>', unsafe_allow_html=True)
-        
-        # INJEÇÃO DO GRÁFICO 2: VARIAÇÃO ACUMULADA
         fig2, ax3 = plt.subplots(figsize=(6, 4))
-        df_plot = df_filtrado.copy()
+        df_plot2 = df_filtrado.copy()
         
-        if not df_plot.empty:
+        if not df_plot2.empty:
             alimentos = ['Cacau', 'Acucar', 'Leite', 'Soja', 'Milho', 'Trigo']
             for item in alimentos:
-                valor_inicial = df_plot[item].iloc[0]
-                df_plot[f'{item}_Var'] = ((df_plot[item] / valor_inicial) - 1) * 100
+                valor_inicial = df_plot2[item].iloc[0]
+                df_plot2[f'{item}_Var'] = ((df_plot2[item] / valor_inicial) - 1) * 100
                 
             cores = sns.color_palette("husl", len(alimentos))
             for i, item in enumerate(alimentos):
-                ax3.plot(df_plot['Data'], df_plot[f'{item}_Var'], label=item, linewidth=2, color=cores[i])
+                ax3.plot(df_plot2['Data'], df_plot2[f'{item}_Var'], label=item, linewidth=2, color=cores[i])
 
-            passo = max(1, len(df_plot) // 4) 
-            indices_eixo = range(0, len(df_plot), passo)
-            datas_sel = df_plot['Data'].iloc[indices_eixo]
-            valores_dolar = df_plot['Dolar'].iloc[indices_eixo].apply(lambda x: f'USD {x:.2f}')
-            valores_selic = df_plot['Selic'].iloc[indices_eixo].apply(lambda x: f'SELIC {x:.1f}%')
+            passo = max(1, len(df_plot2) // 4) 
+            indices_eixo = range(0, len(df_plot2), passo)
+            datas_sel = df_plot2['Data'].iloc[indices_eixo]
+            valores_dolar = df_plot2['Dolar'].iloc[indices_eixo].apply(lambda x: f'USD {x:.2f}')
+            valores_selic = df_plot2['Selic'].iloc[indices_eixo].apply(lambda x: f'SELIC {x:.1f}%')
             
             labels_completos = [
                 f"{d.strftime('%m/%y')}\n{v}\n{s}"
@@ -231,9 +226,48 @@ with col_dir:
     # QUADRANTE 2: Troca de materiais
     st.markdown('<div class="cabecalho-chocolate">TROCA DE MATERIAIS</div>', unsafe_allow_html=True)
     c5, c6 = st.columns(2)
+    
     with c5:
         st.markdown('<div class="sub-caramelo">Custo de Substituição</div>', unsafe_allow_html=True)
-        st.markdown('<div class="grafico-falso">[Espaço do Gráfico 5]</div>', unsafe_allow_html=True)
+        
+        # INJEÇÃO DO GRÁFICO 5 (Exato do seu Notebook)
+        fig5, ax5 = plt.subplots(figsize=(6, 4))
+        df_plot5 = df_filtrado.copy()
+        
+        if not df_plot5.empty:
+            scaler = MinMaxScaler()
+            cols_lag = ['Cacau_12M_Atras', 'Soja_12M_Atras', 'Milho_12M_Atras', 'Trigo_12M_Atras']
+            
+            # Aplica a normalização nas colunas de lag
+            df_plot5[[c + '_Norm' for c in cols_lag]] = scaler.fit_transform(df_plot5[cols_lag])
+            
+            # --- O DRIVER DE CUSTO ---
+            ax5.plot(df_plot5['Data'], df_plot5['Cacau_12M_Atras_Norm'], color='#7e5109', linewidth=3, label='Cacau (Premium)')
+            
+            # --- VARIÁVEIS DE COMPENSAÇÃO ---
+            ax5.plot(df_plot5['Data'], df_plot5['Soja_12M_Atras_Norm'], color='#27ae60', linewidth=2, linestyle='--', label='Soja')
+            ax5.plot(df_plot5['Data'], df_plot5['Milho_12M_Atras_Norm'], color='#f1c40f', linewidth=2, linestyle='--', label='Milho')
+            ax5.plot(df_plot5['Data'], df_plot5['Trigo_12M_Atras_Norm'], color='#95a5a6', linewidth=2, linestyle='--', label='Trigo')
+            
+            # Shading
+            ax5.fill_between(df_plot5['Data'], df_plot5['Cacau_12M_Atras_Norm'], df_plot5['Soja_12M_Atras_Norm'], color='gray', alpha=0.1)
+            
+            # Estética (Adequada ao tamanho do container)
+            ax5.set_ylabel('Impacto Normalizado (0-1)', color='#2c3e50', fontsize=9, fontweight='bold')
+            ax5.tick_params(axis='y', labelcolor='#2c3e50', labelsize=8)
+            ax5.tick_params(axis='x', labelsize=8)
+            ax5.grid(axis='y', linestyle='--', alpha=0.3)
+            fig5.autofmt_xdate(rotation=45)
+            
+            # Legenda centralizada abaixo
+            ax5.legend(loc='upper center', bbox_to_anchor=(0.5, -0.25), ncol=2, frameon=False, fontsize=8)
+            
+            fig5.patch.set_alpha(0)
+            ax5.patch.set_alpha(0)
+            st.pyplot(fig5, use_container_width=True)
+        else:
+            st.info("Sem dados disponíveis.")
+
     with c6:
         st.markdown('<div class="sub-caramelo">Gatilho Skimpflation</div>', unsafe_allow_html=True)
         st.markdown('<div class="grafico-falso">[Espaço do Gráfico 6]</div>', unsafe_allow_html=True)
