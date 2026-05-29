@@ -9,19 +9,25 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# 2. CARREGAMENTO DOS DADOS (Com Cache Inteligente)
-@st.cache_data
+# 2. CARREGAMENTO DOS DADOS (Conexão Direta com o GitHub)
+@st.cache_data(ttl=600) # O ttl=600 faz ele checar o github a cada 10 minutos se tem atualização
 def carregar_dados():
-    # O Streamlit percebe sozinho quando você atualiza esse arquivo e recarrega os dados.
-    # (Se preferir puxar via web no futuro, pode trocar por: "https://raw.githubusercontent.com/ViniciusPaula140/Analise-de-chocolate/main/dataset_projeto_pascoa.xlsx")
-    df = pd.read_excel("dataset_projeto_pascoa.xlsx")
-    df['Data'] = pd.to_datetime(df['Data'])
-    return df
+    # URLs "Raw" do seu repositório no GitHub
+    url_macro = "https://raw.githubusercontent.com/ViniciusPaula140/Analise-de-chocolate/main/dataset_projeto_pascoa.xlsx"
+    url_chocolates = "https://raw.githubusercontent.com/ViniciusPaula140/Analise-de-chocolate/main/base_completa_chocolates.xlsx"
+    
+    # Faz o download e leitura automática via Pandas
+    df_macro = pd.read_excel(url_macro)
+    df_macro['Data'] = pd.to_datetime(df_macro['Data'])
+    
+    df_chocolates = pd.read_excel(url_chocolates)
+    
+    return df_macro, df_chocolates
 
 try:
-    df_macro = carregar_dados()
+    df_macro, df_chocolates = carregar_dados()
 except Exception as e:
-    st.error(f"⚠️ Arquivo 'dataset_projeto_pascoa.xlsx' não encontrado. Coloque-o na mesma pasta do app.py")
+    st.error(f"⚠️ Erro ao conectar com o GitHub. Verifique sua conexão com a internet ou se o repositório está público. Erro: {e}")
     st.stop()
 
 # 3. CSS MÁGICO (Ajustes de espaçamento, alinhamento e contraste)
@@ -45,10 +51,10 @@ st.markdown("""
         color: #F4EBD9;
         padding: 25px 30px; 
         border-radius: 12px;
-        text-align: left; /* Mudança para a esquerda */
-        font-size: 38px; /* Fonte aumentada */
+        text-align: left; 
+        font-size: 38px; 
         font-weight: 800;
-        margin-bottom: 50px; /* Margem aumentada para afastar dos cartões */
+        margin-bottom: 50px; 
         box-shadow: 0px 4px 10px rgba(0,0,0,0.15);
         text-transform: uppercase;
         letter-spacing: 2px;
@@ -78,15 +84,14 @@ st.markdown("""
         box-shadow: 0px 2px 4px rgba(0,0,0,0.05);
     }
     
-    /* Cartões com bordas mais evidentes e sombras mais fortes */
     .cartao-kpi { 
         background: linear-gradient(135deg, #FFFFFF, #F4EBD9);
         padding: 20px 10px; 
         text-align: center; 
         border-radius: 10px; 
         height: 120px; 
-        border: 2px solid #D4A373; /* Borda adicionada para destacar */
-        box-shadow: 0px 6px 12px rgba(0,0,0,0.12); /* Sombra mais destacada */
+        border: 2px solid #D4A373; 
+        box-shadow: 0px 6px 12px rgba(0,0,0,0.12); 
         border-bottom: 6px solid #5C3A21;
     }
     
@@ -119,12 +124,11 @@ st.markdown("""
         box-shadow: inset 0px 0px 10px rgba(0,0,0,0.02);
     }
 
-    /* Linha divisória mais escura e marcante */
     hr.linha-divisoria {
         border: none;
         height: 2px;
-        background-color: #B08D6A; /* Marrom mais escuro */
-        margin: 40px 0; /* Mais espaço em cima e embaixo */
+        background-color: #B08D6A; 
+        margin: 40px 0; 
     }
     </style>
 """, unsafe_allow_html=True)
@@ -159,7 +163,6 @@ with k2:
 with k3:
     st.markdown('<div class="cartao-kpi"><span class="kpi-titulo">Cotação Dólar</span><span class="kpi-valor">R$ 5,15</span></div>', unsafe_allow_html=True)
 
-# Aplica a nova linha divisória mais escura
 st.markdown("<hr class='linha-divisoria'>", unsafe_allow_html=True)
 
 # 6. A GRANDE DIVISÃO DOS GRÁFICOS: Esquerda e Direita
@@ -175,7 +178,6 @@ with col_esq:
         st.markdown('<div class="sub-caramelo">Selic, Dólar e Inflação</div>', unsafe_allow_html=True)
         
         # INJEÇÃO DO GRÁFICO 1 (Dual-Axis Plot)
-        # Ocultamos a div falsa e criamos a figura Matplotlib que se encaixará no container
         fig1, ax1 = plt.subplots(figsize=(6, 4))
         
         # --- EIXO PRIMÁRIO (Esquerda) ---
@@ -186,7 +188,7 @@ with col_esq:
         ax1.tick_params(axis='y', labelcolor='#2c3e50', labelsize=8)
         ax1.tick_params(axis='x', labelsize=8)
         ax1.grid(axis='y', linestyle='--', alpha=0.3)
-        fig1.autofmt_xdate(rotation=45) # Inclina as datas para não embolarem
+        fig1.autofmt_xdate(rotation=45)
         
         # --- EIXO SECUNDÁRIO (Direita) ---
         ax2 = ax1.twinx()
@@ -203,9 +205,7 @@ with col_esq:
         fig1.patch.set_alpha(0)
         ax1.patch.set_alpha(0)
         
-        # Renderiza no Streamlit ocupando toda a largura da coluna
         st.pyplot(fig1, use_container_width=True)
-
 
     with c2:
         st.markdown('<div class="sub-caramelo">Insumos x Cenário Macro</div>', unsafe_allow_html=True)
