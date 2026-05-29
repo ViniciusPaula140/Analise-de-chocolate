@@ -116,6 +116,12 @@ st.markdown("""
     }
 
     hr.linha-divisoria { border: none; height: 2px; background-color: #B08D6A; margin: 40px 0; }
+    
+    /* Estilo para a caixa de seleção do Streamlit ficar harmônica */
+    div[data-baseweb="select"] > div {
+        background-color: #FFFFFF;
+        border: 1px solid #D4A373;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -241,7 +247,7 @@ with col_esq:
         df_p3 = df_filtrado.copy()
         if not df_p3.empty:
             df_p3[['Dolar', 'Cacau']] = df_p3[['Dolar', 'Cacau']].ffill().bfill()
-            df_p3 = df_p3.tail(15)
+            df_p3 = df_p3.tail(15) # Time Windowing
             eixo_x = df_p3['Data'].dt.strftime('%m/%y')
             
             bars = ax3_1.bar(eixo_x, df_p3['Dolar'], color='skyblue', alpha=0.7, label='Dólar (R$)')
@@ -350,7 +356,7 @@ with col_dir:
             
             ax6.fill_between(df_p6['Data'], 0, 1.05, 
                              where=(df_p6['Pressao_Dupla'] > limite_critico),
-                             color='red', alpha=0.15, label='Alerta: Skimpflation', interpolate=True)
+                             color='red', alpha=0.15, label='Alerta: Risco Skimpflation', interpolate=True)
             
             ax6.set_ylabel('Estresse Normalizado (0-1)', color='#2c3e50', fontsize=9, fontweight='bold')
             ax6.tick_params(axis='y', labelcolor='#2c3e50', labelsize=8)
@@ -367,26 +373,25 @@ with col_dir:
         
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # --- QUADRANTE 4: PREVISÃO (Machine Learning) ---
+    # --- QUADRANTE 4: PREVISÃO (Machine Learning + Scraping) ---
     st.markdown('<div class="cabecalho-chocolate">PREVISÃO 2027</div>', unsafe_allow_html=True)
     c7, c8 = st.columns(2)
     
+    # Variável global para armazenar a taxa da IA e passar para os chocolates
+    taxa_projetada = None 
+
     with c7:
         st.markdown('<div class="sub-caramelo">Validação: Real vs IA (Machine Learning)</div>', unsafe_allow_html=True)
-        
-        # INJEÇÃO DO GRÁFICO 7: MODELO PREDITIVO DE RANDOM FOREST
         df_ml = df_filtrado.copy()
         features_ia = ['Cacau_12M_Atras', 'Petroleo_6M_Atras', 'Dolar_6M_Atras', 'Selic', 'Leite']
         target_ia = 'Inflacao_Alimentos'
         
-        # Limpeza severa de nulos para o Algoritmo ML não quebrar
         df_ml = df_ml.dropna(subset=features_ia + [target_ia])
         
         if not df_ml.empty and len(df_ml) > 3:
             X = df_ml[features_ia]
             y = df_ml[target_ia]
             
-            # Treinamento do Modelo de Árvore de Decisão
             modelo_rf = RandomForestRegressor(n_estimators=100, max_depth=3, random_state=42)
             modelo_rf.fit(X, y)
             previsoes = modelo_rf.predict(X)
@@ -400,14 +405,13 @@ with col_dir:
             ax7.tick_params(axis='x', labelsize=8)
             ax7.grid(axis='y', linestyle='--', alpha=0.3)
             fig7.autofmt_xdate(rotation=45)
-            
             ax7.legend(loc='upper center', bbox_to_anchor=(0.5, -0.25), ncol=2, frameon=False, fontsize=8)
             
             fig7.patch.set_alpha(0)
             ax7.patch.set_alpha(0)
             st.pyplot(fig7, use_container_width=True)
             
-            # Diretriz de Decisão Automatizada (Alertas Nativos do Streamlit)
+            # Cálculo final da taxa projetada
             taxa_projetada = previsoes[-1]
             st.markdown("<br>", unsafe_allow_html=True)
             
@@ -417,10 +421,61 @@ with col_dir:
                 st.success(f"✅ **OPORTUNIDADE:** Projeção de queda de {abs(taxa_projetada):.1f}%. Aguarde janela.")
             else:
                 st.info(f"⚖️ **ESTABILIDADE:** Projeção de {taxa_projetada:.1f}%. Gestão neutra.")
-
         else:
             st.info("Volume de dados insuficiente neste filtro temporal para treinar a IA.")
 
     with c8:
-        st.markdown('<div class="sub-caramelo">Preço Chocolates 2027</div>', unsafe_allow_html=True)
-        st.markdown('<div class="grafico-falso">[Espaço do Gráfico: Ranking 2027]</div>', unsafe_allow_html=True)
+        st.markdown('<div class="sub-caramelo">Preço Chocolates 2027 (Varejo)</div>', unsafe_allow_html=True)
+        
+        if taxa_projetada is not None:
+            # 1. Detecção Inteligente de Colunas
+            colunas_excel = df_chocolates.columns.tolist()
+            col_preco, col_produto, col_marca = None, None, None
+            
+            for col in colunas_excel:
+                nome_limpo = col.lower().strip()
+                if any(x in nome_limpo for x in ['preç', 'prec', 'valor', 'r$']): col_preco = col
+                elif any(x in nome_limpo for x in ['prod', 'nome', 'descri', 'item']): col_produto = col
+                elif any(x in nome_limpo for x in ['marc', 'fabric', 'brand']): col_marca = col
+                
+            if col_preco and col_produto and col_marca:
+                # 2. Tratamento Numérico
+                if df_chocolates[col_preco].dtype == 'object':
+                    df_chocolates['Preco_Real'] = pd.to_numeric(
+                        df_chocolates[col_preco].astype(str).str.replace('R$', '', regex=False).str.replace(',', '.', regex=False).str.strip(), 
+                        errors='coerce'
+                    )
+                else:
+                    df_chocolates['Preco_Real'] = df_chocolates[col_preco]
+                
+                # Aplica a Inflação Projetada
+                df_chocolates['Preco_2027'] = df_chocolates['Preco_Real'] * (1 + (taxa_projetada / 100))
+                
+                # 3. Criação da Lista e Menu Interativo
+                lista_marcas = sorted(df_chocolates[col_marca].dropna().unique().tolist())
+                marca_selecionada = st.selectbox("Selecione a Marca:", ["Escolha uma marca..."] + lista_marcas, label_visibility="collapsed")
+                
+                if marca_selecionada != "Escolha uma marca...":
+                    df_choc_filtrado = df_chocolates[df_chocolates[col_marca] == marca_selecionada].dropna(subset=['Preco_Real'])
+                    
+                    st.markdown(f"**Inflação Aplicada (IA):** <span style='color: #e74c3c;'>+{taxa_projetada:.2f}%</span>", unsafe_allow_html=True)
+                    
+                    # Container com barra de rolagem (Scroll)
+                    with st.container(height=310):
+                        for _, row in df_choc_filtrado.iterrows():
+                            # Layout HTML do Card de Chocolate
+                            card = f"""
+                            <div style="background-color: #F4EBD9; padding: 10px; border-radius: 6px; margin-bottom: 8px; border-left: 4px solid #5C3A21;">
+                                <p style="margin: 0; font-weight: 600; color: #4b2e13; font-size: 13px;">🍫 {row[col_produto]}</p>
+                                <p style="margin: 0; font-size: 13px; color: #845422; margin-top: 4px;">
+                                    2026: <b>R$ {row['Preco_Real']:.2f}</b> &nbsp;|&nbsp; 2027: <b style="color: #e74c3c;">R$ {row['Preco_2027']:.2f}</b>
+                                </p>
+                            </div>
+                            """
+                            st.markdown(card, unsafe_allow_html=True)
+                else:
+                    st.info("👆 Selecione uma marca na caixa acima para simular o repasse de custos para o varejo.")
+            else:
+                st.error("Não foi possível identificar as colunas Produto/Preço/Marca na planilha.")
+        else:
+            st.info("Aguardando os cálculos da Inteligência Artificial ao lado...")
