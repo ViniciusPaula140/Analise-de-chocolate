@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.preprocessing import MinMaxScaler # <-- Importação adicionada
+from sklearn.preprocessing import MinMaxScaler
 
 # 1. CONFIGURAÇÃO DA PÁGINA
 st.set_page_config(
@@ -176,6 +176,9 @@ with col_esq:
         
         if not df_plot2.empty:
             alimentos = ['Cacau', 'Acucar', 'Leite', 'Soja', 'Milho', 'Trigo']
+            # Tratamento de segurança contra dados nulos na série temporal
+            df_plot2[alimentos] = df_plot2[alimentos].ffill().bfill()
+            
             for item in alimentos:
                 valor_inicial = df_plot2[item].iloc[0]
                 df_plot2[f'{item}_Var'] = ((df_plot2[item] / valor_inicial) - 1) * 100
@@ -229,8 +232,6 @@ with col_dir:
     
     with c5:
         st.markdown('<div class="sub-caramelo">Custo de Substituição</div>', unsafe_allow_html=True)
-        
-        # INJEÇÃO DO GRÁFICO 5 (Exato do seu Notebook)
         fig5, ax5 = plt.subplots(figsize=(6, 4))
         df_plot5 = df_filtrado.copy()
         
@@ -238,28 +239,22 @@ with col_dir:
             scaler = MinMaxScaler()
             cols_lag = ['Cacau_12M_Atras', 'Soja_12M_Atras', 'Milho_12M_Atras', 'Trigo_12M_Atras']
             
-            # Aplica a normalização nas colunas de lag
+            # Tratamento de Erro Crítico: Preenche NaNs para impedir que o Scikit-Learn quebre o dashboard
+            df_plot5[cols_lag] = df_plot5[cols_lag].ffill().bfill()
+            
             df_plot5[[c + '_Norm' for c in cols_lag]] = scaler.fit_transform(df_plot5[cols_lag])
             
-            # --- O DRIVER DE CUSTO ---
             ax5.plot(df_plot5['Data'], df_plot5['Cacau_12M_Atras_Norm'], color='#7e5109', linewidth=3, label='Cacau (Premium)')
-            
-            # --- VARIÁVEIS DE COMPENSAÇÃO ---
             ax5.plot(df_plot5['Data'], df_plot5['Soja_12M_Atras_Norm'], color='#27ae60', linewidth=2, linestyle='--', label='Soja')
             ax5.plot(df_plot5['Data'], df_plot5['Milho_12M_Atras_Norm'], color='#f1c40f', linewidth=2, linestyle='--', label='Milho')
             ax5.plot(df_plot5['Data'], df_plot5['Trigo_12M_Atras_Norm'], color='#95a5a6', linewidth=2, linestyle='--', label='Trigo')
-            
-            # Shading
             ax5.fill_between(df_plot5['Data'], df_plot5['Cacau_12M_Atras_Norm'], df_plot5['Soja_12M_Atras_Norm'], color='gray', alpha=0.1)
             
-            # Estética (Adequada ao tamanho do container)
             ax5.set_ylabel('Impacto Normalizado (0-1)', color='#2c3e50', fontsize=9, fontweight='bold')
             ax5.tick_params(axis='y', labelcolor='#2c3e50', labelsize=8)
             ax5.tick_params(axis='x', labelsize=8)
             ax5.grid(axis='y', linestyle='--', alpha=0.3)
             fig5.autofmt_xdate(rotation=45)
-            
-            # Legenda centralizada abaixo
             ax5.legend(loc='upper center', bbox_to_anchor=(0.5, -0.25), ncol=2, frameon=False, fontsize=8)
             
             fig5.patch.set_alpha(0)
@@ -270,7 +265,42 @@ with col_dir:
 
     with c6:
         st.markdown('<div class="sub-caramelo">Gatilho Skimpflation</div>', unsafe_allow_html=True)
-        st.markdown('<div class="grafico-falso">[Espaço do Gráfico 6]</div>', unsafe_allow_html=True)
+        fig6, ax6 = plt.subplots(figsize=(6, 4))
+        df_plot6 = df_filtrado.copy()
+        
+        if not df_plot6.empty:
+            scaler6 = MinMaxScaler()
+            cols_gatilho = ['Cacau_12M_Atras', 'Leite']
+            
+            # Tratamento de Erro Crítico: Preenche NaNs para impedir que o Scikit-Learn quebre o dashboard
+            df_plot6[cols_gatilho] = df_plot6[cols_gatilho].ffill().bfill()
+            
+            df_plot6[['Cacau_Norm', 'Leite_Norm']] = scaler6.fit_transform(df_plot6[cols_gatilho])
+            
+            df_plot6['Pressao_Dupla'] = df_plot6['Cacau_Norm'] + df_plot6['Leite_Norm']
+            limite_critico = df_plot6['Pressao_Dupla'].quantile(0.75)
+            
+            ax6.plot(df_plot6['Data'], df_plot6['Cacau_Norm'], label='Cacau (Lag 12M)', color='#8e44ad', linewidth=2.5)
+            ax6.plot(df_plot6['Data'], df_plot6['Leite_Norm'], label='Leite (Spot)', color='#3498db', linewidth=2.5)
+            
+            ax6.fill_between(df_plot6['Data'], 0, 1.05, 
+                             where=(df_plot6['Pressao_Dupla'] > limite_critico),
+                             color='red', alpha=0.15, label='Alerta: Risco Skimpflation', interpolate=True)
+            
+            ax6.set_ylabel('Estresse Normalizado (0-1)', color='#2c3e50', fontsize=9, fontweight='bold')
+            ax6.tick_params(axis='y', labelcolor='#2c3e50', labelsize=8)
+            ax6.tick_params(axis='x', labelsize=8)
+            ax6.grid(axis='y', linestyle='--', alpha=0.3)
+            ax6.set_ylim(0, 1.05)
+            fig6.autofmt_xdate(rotation=45)
+            
+            ax6.legend(loc='upper center', bbox_to_anchor=(0.5, -0.25), ncol=2, frameon=False, fontsize=8)
+            
+            fig6.patch.set_alpha(0)
+            ax6.patch.set_alpha(0)
+            st.pyplot(fig6, use_container_width=True)
+        else:
+            st.info("Sem dados disponíveis.")
         
     st.markdown("<br>", unsafe_allow_html=True)
 
