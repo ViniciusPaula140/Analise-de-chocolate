@@ -117,7 +117,34 @@ st.markdown("""
 
     hr.linha-divisoria { border: none; height: 2px; background-color: #B08D6A; margin: 40px 0; }
     
-    /* Estilo para a caixa de seleção do Streamlit ficar harmônica */
+    /* ========================================= */
+    /* CUSTOMIZAÇÃO DA BARRA LATERAL (SIDEBAR)   */
+    /* ========================================= */
+    [data-testid="stSidebar"] {
+        background-image: linear-gradient(180deg, #3e1f04, #5C3A21) !important;
+        border-right: 2px solid #D4A373 !important;
+    }
+    
+    [data-testid="stSidebar"] h2 {
+        color: #D4A373 !important;
+        font-weight: 800 !important;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    
+    [data-testid="stSidebar"] p, [data-testid="stSidebar"] span {
+        color: #F4EBD9 !important;
+        font-size: 16px !important;
+        font-weight: 500 !important;
+    }
+    
+    div[role="radiogroup"] {
+        background-color: rgba(255, 255, 255, 0.05);
+        padding: 15px;
+        border-radius: 10px;
+        border: 1px solid rgba(212, 163, 115, 0.3);
+    }
+    
     div[data-baseweb="select"] > div {
         background-color: #FFFFFF;
         border: 1px solid #D4A373;
@@ -129,14 +156,13 @@ st.markdown("""
 # 4. BARRA LATERAL (Filtros)
 # ==========================================
 with st.sidebar:
-    st.header("🍫 Filtros do Dashboard")
+    st.header("🍫 Filtros de Análise")
     st.markdown("---")
     ano_selecionado = st.radio(
-        "Selecione o Período:",
+        "Selecione o Período Base:",
         ["Todos os anos", "2024", "2025", "2026"]
     )
     st.markdown("---")
-    st.info("💡 Pode minimizar este menu clicando na setinha ( > ) no canto superior esquerdo.")
 
 # Lógica de Filtragem Universal
 if ano_selecionado == "Todos os anos":
@@ -145,22 +171,39 @@ else:
     df_filtrado = df_macro[df_macro['Data'].dt.year == int(ano_selecionado)].copy()
 
 # ==========================================
-# 5. TOPO PRINCIPAL: Banner e KPIs
+# 5. LÓGICA DOS KPIS (Dados Dinâmicos)
+# ==========================================
+if not df_filtrado.empty:
+    # Pega sempre a última linha do dataset filtrado (o mês mais recente)
+    ultimo_cacau = df_filtrado['Cacau'].iloc[-1]
+    ultima_inflacao = df_filtrado['Inflacao_Alimentos'].iloc[-1]
+    ultimo_dolar = df_filtrado['Dolar'].iloc[-1]
+    
+    # Formatação das Strings
+    str_cacau = f"$ {ultimo_cacau:,.0f}".replace(',', '.')
+    str_inflacao = f"{ultima_inflacao:.2f}%"
+    str_dolar = f"R$ {ultimo_dolar:.2f}".replace('.', ',')
+else:
+    str_cacau, str_inflacao, str_dolar = "$ 0", "0.0%", "R$ 0,00"
+
+
+# ==========================================
+# 6. TOPO PRINCIPAL: Banner e KPIs
 # ==========================================
 st.markdown('<div class="titulo-dashboard">Análise Logística e de Custos: Especial Páscoa</div>', unsafe_allow_html=True)
 
 k1, k2, k3 = st.columns(3)
 with k1:
-    st.markdown('<div class="cartao-kpi"><span class="kpi-titulo">Preço Cacau (Spot)</span><span class="kpi-valor">$ 9.850</span></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="cartao-kpi"><span class="kpi-titulo">Cacau (Último Mês)</span><span class="kpi-valor">{str_cacau}</span></div>', unsafe_allow_html=True)
 with k2:
-    st.markdown('<div class="cartao-kpi"><span class="kpi-titulo">Inflação de Alimentos</span><span class="kpi-valor">1.2%</span></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="cartao-kpi"><span class="kpi-titulo">Inflação (Último Mês)</span><span class="kpi-valor">{str_inflacao}</span></div>', unsafe_allow_html=True)
 with k3:
-    st.markdown('<div class="cartao-kpi"><span class="kpi-titulo">Cotação Dólar</span><span class="kpi-valor">R$ 5,15</span></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="cartao-kpi"><span class="kpi-titulo">Dólar (Último Mês)</span><span class="kpi-valor">{str_dolar}</span></div>', unsafe_allow_html=True)
 
 st.markdown("<hr class='linha-divisoria'>", unsafe_allow_html=True)
 
 # ==========================================
-# 6. A GRANDE DIVISÃO DOS GRÁFICOS
+# 7. A GRANDE DIVISÃO DOS GRÁFICOS
 # ==========================================
 col_esq, col_dir = st.columns(2, gap="large")
 
@@ -247,7 +290,7 @@ with col_esq:
         df_p3 = df_filtrado.copy()
         if not df_p3.empty:
             df_p3[['Dolar', 'Cacau']] = df_p3[['Dolar', 'Cacau']].ffill().bfill()
-            df_p3 = df_p3.tail(15) # Time Windowing
+            df_p3 = df_p3.tail(15)
             eixo_x = df_p3['Data'].dt.strftime('%m/%y')
             
             bars = ax3_1.bar(eixo_x, df_p3['Dolar'], color='skyblue', alpha=0.7, label='Dólar (R$)')
@@ -377,7 +420,6 @@ with col_dir:
     st.markdown('<div class="cabecalho-chocolate">PREVISÃO 2027</div>', unsafe_allow_html=True)
     c7, c8 = st.columns(2)
     
-    # Variável global para armazenar a taxa da IA e passar para os chocolates
     taxa_projetada = None 
 
     with c7:
@@ -411,7 +453,6 @@ with col_dir:
             ax7.patch.set_alpha(0)
             st.pyplot(fig7, use_container_width=True)
             
-            # Cálculo final da taxa projetada
             taxa_projetada = previsoes[-1]
             st.markdown("<br>", unsafe_allow_html=True)
             
@@ -428,7 +469,6 @@ with col_dir:
         st.markdown('<div class="sub-caramelo">Preço Chocolates 2027 (Varejo)</div>', unsafe_allow_html=True)
         
         if taxa_projetada is not None:
-            # 1. Detecção Inteligente de Colunas
             colunas_excel = df_chocolates.columns.tolist()
             col_preco, col_produto, col_marca = None, None, None
             
@@ -439,7 +479,6 @@ with col_dir:
                 elif any(x in nome_limpo for x in ['marc', 'fabric', 'brand']): col_marca = col
                 
             if col_preco and col_produto and col_marca:
-                # 2. Tratamento Numérico
                 if df_chocolates[col_preco].dtype == 'object':
                     df_chocolates['Preco_Real'] = pd.to_numeric(
                         df_chocolates[col_preco].astype(str).str.replace('R$', '', regex=False).str.replace(',', '.', regex=False).str.strip(), 
@@ -448,10 +487,8 @@ with col_dir:
                 else:
                     df_chocolates['Preco_Real'] = df_chocolates[col_preco]
                 
-                # Aplica a Inflação Projetada
                 df_chocolates['Preco_2027'] = df_chocolates['Preco_Real'] * (1 + (taxa_projetada / 100))
                 
-                # 3. Criação da Lista e Menu Interativo
                 lista_marcas = sorted(df_chocolates[col_marca].dropna().unique().tolist())
                 marca_selecionada = st.selectbox("Selecione a Marca:", ["Escolha uma marca..."] + lista_marcas, label_visibility="collapsed")
                 
@@ -460,10 +497,8 @@ with col_dir:
                     
                     st.markdown(f"**Inflação Aplicada (IA):** <span style='color: #e74c3c;'>+{taxa_projetada:.2f}%</span>", unsafe_allow_html=True)
                     
-                    # Container com barra de rolagem (Scroll)
                     with st.container(height=310):
                         for _, row in df_choc_filtrado.iterrows():
-                            # Layout HTML do Card de Chocolate
                             card = f"""
                             <div style="background-color: #F4EBD9; padding: 10px; border-radius: 6px; margin-bottom: 8px; border-left: 4px solid #5C3A21;">
                                 <p style="margin: 0; font-weight: 600; color: #4b2e13; font-size: 13px;">🍫 {row[col_produto]}</p>
