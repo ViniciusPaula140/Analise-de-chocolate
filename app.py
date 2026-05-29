@@ -1,8 +1,11 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.preprocessing import MinMaxScaler
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.metrics import r2_score, mean_absolute_error
 import warnings
 
 # Ignora os avisos de terminal do Pandas para manter o log limpo
@@ -238,7 +241,7 @@ with col_esq:
         df_p3 = df_filtrado.copy()
         if not df_p3.empty:
             df_p3[['Dolar', 'Cacau']] = df_p3[['Dolar', 'Cacau']].ffill().bfill()
-            df_p3 = df_p3.tail(15) # Time Windowing
+            df_p3 = df_p3.tail(15)
             eixo_x = df_p3['Data'].dt.strftime('%m/%y')
             
             bars = ax3_1.bar(eixo_x, df_p3['Dolar'], color='skyblue', alpha=0.7, label='Dólar (R$)')
@@ -364,12 +367,60 @@ with col_dir:
         
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # --- QUADRANTE 4: PREVISÃO (ESPAÇOS RESERVADOS) ---
+    # --- QUADRANTE 4: PREVISÃO (Machine Learning) ---
     st.markdown('<div class="cabecalho-chocolate">PREVISÃO 2027</div>', unsafe_allow_html=True)
     c7, c8 = st.columns(2)
+    
     with c7:
-        st.markdown('<div class="sub-caramelo">Previsão de Custos</div>', unsafe_allow_html=True)
-        st.markdown('<div class="grafico-falso">[Espaço do Gráfico: Projeção]</div>', unsafe_allow_html=True)
+        st.markdown('<div class="sub-caramelo">Validação: Real vs IA (Machine Learning)</div>', unsafe_allow_html=True)
+        
+        # INJEÇÃO DO GRÁFICO 7: MODELO PREDITIVO DE RANDOM FOREST
+        df_ml = df_filtrado.copy()
+        features_ia = ['Cacau_12M_Atras', 'Petroleo_6M_Atras', 'Dolar_6M_Atras', 'Selic', 'Leite']
+        target_ia = 'Inflacao_Alimentos'
+        
+        # Limpeza severa de nulos para o Algoritmo ML não quebrar
+        df_ml = df_ml.dropna(subset=features_ia + [target_ia])
+        
+        if not df_ml.empty and len(df_ml) > 3:
+            X = df_ml[features_ia]
+            y = df_ml[target_ia]
+            
+            # Treinamento do Modelo de Árvore de Decisão
+            modelo_rf = RandomForestRegressor(n_estimators=100, max_depth=3, random_state=42)
+            modelo_rf.fit(X, y)
+            previsoes = modelo_rf.predict(X)
+            
+            fig7, ax7 = plt.subplots(figsize=(6, 4))
+            ax7.plot(df_ml['Data'], y, label='Inflação Real', color='black', alpha=0.6, linewidth=2)
+            ax7.plot(df_ml['Data'], previsoes, label='Previsão IA', color='#c0392b', linestyle='--', linewidth=2.5)
+            
+            ax7.set_ylabel('Inflação (%)', color='#2c3e50', fontsize=9, fontweight='bold')
+            ax7.tick_params(axis='y', labelcolor='#2c3e50', labelsize=8)
+            ax7.tick_params(axis='x', labelsize=8)
+            ax7.grid(axis='y', linestyle='--', alpha=0.3)
+            fig7.autofmt_xdate(rotation=45)
+            
+            ax7.legend(loc='upper center', bbox_to_anchor=(0.5, -0.25), ncol=2, frameon=False, fontsize=8)
+            
+            fig7.patch.set_alpha(0)
+            ax7.patch.set_alpha(0)
+            st.pyplot(fig7, use_container_width=True)
+            
+            # Diretriz de Decisão Automatizada (Alertas Nativos do Streamlit)
+            taxa_projetada = previsoes[-1]
+            st.markdown("<br>", unsafe_allow_html=True)
+            
+            if taxa_projetada > 0.3:
+                st.warning(f"⚠️ **ALERTA:** Projeção de alta de {taxa_projetada:.1f}%. Antecipe estoques.")
+            elif taxa_projetada < -0.3:
+                st.success(f"✅ **OPORTUNIDADE:** Projeção de queda de {abs(taxa_projetada):.1f}%. Aguarde janela.")
+            else:
+                st.info(f"⚖️ **ESTABILIDADE:** Projeção de {taxa_projetada:.1f}%. Gestão neutra.")
+
+        else:
+            st.info("Volume de dados insuficiente neste filtro temporal para treinar a IA.")
+
     with c8:
         st.markdown('<div class="sub-caramelo">Preço Chocolates 2027</div>', unsafe_allow_html=True)
         st.markdown('<div class="grafico-falso">[Espaço do Gráfico: Ranking 2027]</div>', unsafe_allow_html=True)
