@@ -10,51 +10,21 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# 2. CARREGAMENTO DOS DADOS (Com Sistema Anti-Falhas)
-@st.cache_data(ttl=600)
+# 2. CARREGAMENTO DOS DADOS (Local Seguro)
+@st.cache_data
 def carregar_dados():
-    # Lista de tentativas (Main -> Master -> Local)
-    fontes_macro = [
-        "https://raw.githubusercontent.com/ViniciusPaula140/Analise-de-chocolate/main/dataset_projeto_pascoa.xlsx",
-        "https://raw.githubusercontent.com/ViniciusPaula140/Analise-de-chocolate/master/dataset_projeto_pascoa.xlsx",
-        "dataset_projeto_pascoa.xlsx" # Fallback para o arquivo no seu PC
-    ]
+    # Lê os arquivos diretamente da mesma pasta onde está o app.py
+    df_macro = pd.read_excel("dataset_projeto_pascoa.xlsx")
+    df_macro['Data'] = pd.to_datetime(df_macro['Data'])
     
-    fontes_choco = [
-        "https://raw.githubusercontent.com/ViniciusPaula140/Analise-de-chocolate/main/base_completa_chocolates.xlsx",
-        "https://raw.githubusercontent.com/ViniciusPaula140/Analise-de-chocolate/master/base_completa_chocolates.xlsx",
-        "base_completa_chocolates.xlsx" # Fallback para o arquivo no seu PC
-    ]
+    df_chocolates = pd.read_excel("base_completa_chocolates.xlsx")
     
-    df_macro = None
-    df_chocolates = None
-    
-    # Tenta carregar o Macro
-    for fonte in fontes_macro:
-        try:
-            df_macro = pd.read_excel(fonte)
-            df_macro['Data'] = pd.to_datetime(df_macro['Data'])
-            break # Se funcionou, sai do loop
-        except:
-            continue
-            
-    # Tenta carregar os Chocolates
-    for fonte in fontes_choco:
-        try:
-            df_chocolates = pd.read_excel(fonte)
-            break
-        except:
-            continue
-            
-    if df_macro is None or df_chocolates is None:
-        raise Exception("Não consegui carregar os dados do GitHub nem da pasta local.")
-        
     return df_macro, df_chocolates
 
 try:
     df_macro, df_chocolates = carregar_dados()
 except Exception as e:
-    st.error(f"⚠️ Erro ao carregar dados: {e}")
+    st.error(f"⚠️ Erro ao carregar os dados locais: {e}. Verifique se os arquivos .xlsx estão na mesma pasta do app.py.")
     st.stop()
 
 # 3. CSS MÁGICO
