@@ -115,16 +115,24 @@ st.markdown("""
         box-shadow: 0px 4px 10px rgba(0,0,0,0.03) !important;
     }
     
-    /* CUSTOMIZAÇÃO DA BARRA LATERAL */
+    /* ========================================= */
+    /* CUSTOMIZAÇÃO DA BARRA LATERAL PADRÃO      */
+    /* ========================================= */
     [data-testid="stSidebar"] {
         background-image: linear-gradient(180deg, #3e1f04, #5C3A21) !important;
         border-right: 2px solid #D4A373 !important;
     }
     [data-testid="stSidebar"] h2 { color: #D4A373 !important; font-weight: 800 !important; text-transform: uppercase; letter-spacing: 1px; }
     [data-testid="stSidebar"] p, [data-testid="stSidebar"] span { color: #F4EBD9 !important; font-size: 16px !important; font-weight: 500 !important; }
-    div[role="radiogroup"] { background-color: transparent !important; padding: 0px !important; border: none !important; }
-    label[data-baseweb="radio"] { background-color: rgba(255, 255, 255, 0.05) !important; padding: 12px 15px !important; border-radius: 8px !important; margin-bottom: 8px !important; border: 1px solid rgba(212, 163, 115, 0.3) !important; transition: all 0.3s ease !important; cursor: pointer !important; }
-    label[data-baseweb="radio"]:hover { background-color: rgba(212, 163, 115, 0.2) !important; border-color: #D4A373 !important; transform: translateX(5px); }
+    
+    /* Caixa de Fundo para os Botões de Rádio (Padrão) */
+    div[role="radiogroup"] { 
+        background-color: rgba(255, 255, 255, 0.05); 
+        padding: 15px; 
+        border-radius: 10px; 
+        border: 1px solid rgba(212, 163, 115, 0.3); 
+    }
+    
     div[data-baseweb="select"] > div { background-color: #FFFFFF; border: 1px solid #D4A373; border-radius: 8px; }
     </style>
 """, unsafe_allow_html=True)
@@ -133,28 +141,28 @@ st.markdown("""
 # 4. BARRA LATERAL (Filtros)
 # ==========================================
 with st.sidebar:
-    st.header("🍫 Filtros de Análise")
+    st.header("Filtros de anos")
     st.markdown("---")
     ano_selecionado = st.radio(
-        "Selecione o Período Base:",
-        ["Todos os anos", "2024", "2025", "2026"],
-        label_visibility="collapsed"
+        "Selecione o Período:",
+        ["Todos os anos", "2024", "2025", "2026"]
     )
     st.markdown("---")
 
-# Lógica de Filtragem
+# Lógica de Filtragem Universal
 if ano_selecionado == "Todos os anos":
     df_filtrado = df_macro.copy()
 else:
     df_filtrado = df_macro[df_macro['Data'].dt.year == int(ano_selecionado)].copy()
 
 # ==========================================
-# 5. LÓGICA DOS KPIS
+# 5. LÓGICA DOS KPIS (Dados Dinâmicos)
 # ==========================================
 if not df_filtrado.empty:
     ultimo_cacau = df_filtrado['Cacau'].iloc[-1]
     ultima_inflacao = df_filtrado['Inflacao_Alimentos'].iloc[-1]
     ultimo_dolar = df_filtrado['Dolar'].iloc[-1]
+    
     str_cacau = f"$ {ultimo_cacau:,.0f}".replace(',', '.')
     str_inflacao = f"{ultima_inflacao:.2f}%"
     str_dolar = f"R$ {ultimo_dolar:.2f}".replace('.', ',')
@@ -164,7 +172,7 @@ else:
 # ==========================================
 # 6. TOPO PRINCIPAL: Banner e KPIs
 # ==========================================
-st.markdown('<div class="titulo-dashboard">Análise Logística e de Custos: Especial Páscoa</div>', unsafe_allow_html=True)
+st.markdown('<div class="titulo-dashboard">Análise de Páscoa - Unifacs - 2026.1</div>', unsafe_allow_html=True)
 
 k1, k2, k3 = st.columns(3)
 with k1: st.markdown(f'<div class="cartao-kpi"><span class="kpi-titulo">Cacau (Último Mês)</span><span class="kpi-valor">{str_cacau}</span></div>', unsafe_allow_html=True)
@@ -186,7 +194,7 @@ with col_esq:
         c1, c2 = st.columns(2)
         
         with c1:
-            with st.container(height=520, border=True): # ALTURA TRAVADA
+            with st.container(height=520, border=True):
                 st.markdown('<div class="sub-caramelo">Selic, Dólar e Inflação</div>', unsafe_allow_html=True)
                 fig1, ax1 = plt.subplots(figsize=(6, 4))
                 df_p1 = df_filtrado.copy()
@@ -211,7 +219,7 @@ with col_esq:
                     st.pyplot(fig1, use_container_width=True)
 
         with c2:
-            with st.container(height=520, border=True): # ALTURA TRAVADA
+            with st.container(height=520, border=True):
                 st.markdown('<div class="sub-caramelo">Insumos x Cenário Macro</div>', unsafe_allow_html=True)
                 fig2, ax3 = plt.subplots(figsize=(6, 4))
                 df_p2 = df_filtrado.copy()
@@ -253,7 +261,7 @@ with col_esq:
         c3, c4 = st.columns(2)
         
         with c3:
-            with st.container(height=520, border=True): # ALTURA TRAVADA
+            with st.container(height=520, border=True):
                 st.markdown('<div class="sub-caramelo">Cacau X Dólar</div>', unsafe_allow_html=True)
                 fig3, ax3_1 = plt.subplots(figsize=(6, 4))
                 df_p3 = df_filtrado.copy()
@@ -286,7 +294,7 @@ with col_esq:
                     st.pyplot(fig3, use_container_width=True)
 
         with c4:
-            with st.container(height=520, border=True): # ALTURA TRAVADA
+            with st.container(height=520, border=True):
                 st.markdown('<div class="sub-caramelo">Efeito Dominó Petróleo X Açúcar</div>', unsafe_allow_html=True)
                 fig4, ax4 = plt.subplots(figsize=(6, 4))
                 df_p4 = df_filtrado.copy()
@@ -318,7 +326,7 @@ with col_dir:
         c5, c6 = st.columns(2)
         
         with c5:
-            with st.container(height=520, border=True): # ALTURA TRAVADA
+            with st.container(height=520, border=True):
                 st.markdown('<div class="sub-caramelo">Custo de Substituição</div>', unsafe_allow_html=True)
                 fig5, ax5 = plt.subplots(figsize=(6, 4))
                 df_p5 = df_filtrado.copy()
@@ -345,7 +353,7 @@ with col_dir:
                     st.pyplot(fig5, use_container_width=True)
 
         with c6:
-            with st.container(height=520, border=True): # ALTURA TRAVADA
+            with st.container(height=520, border=True):
                 st.markdown('<div class="sub-caramelo">Gatilho Skimpflation</div>', unsafe_allow_html=True)
                 fig6, ax6 = plt.subplots(figsize=(6, 4))
                 df_p6 = df_filtrado.copy()
@@ -383,8 +391,8 @@ with col_dir:
         taxa_projetada = None 
 
         with c7:
-            with st.container(height=520, border=True): # ALTURA TRAVADA
-                st.markdown('<div class="sub-caramelo">Validação: Real vs IA (Machine Learning)</div>', unsafe_allow_html=True)
+            with st.container(height=520, border=True):
+                st.markdown('<div class="sub-caramelo">Validação: Real vs IA</div>', unsafe_allow_html=True)
                 df_ml = df_filtrado.copy()
                 features_ia = ['Cacau_12M_Atras', 'Petroleo_6M_Atras', 'Dolar_6M_Atras', 'Selic', 'Leite']
                 target_ia = 'Inflacao_Alimentos'
@@ -418,7 +426,7 @@ with col_dir:
                     st.info("Volume de dados insuficiente neste filtro temporal para treinar a IA.")
 
         with c8:
-            with st.container(height=520, border=True): # ALTURA TRAVADA (Equilibra com o gráfico da IA)
+            with st.container(height=520, border=True):
                 st.markdown('<div class="sub-caramelo">Preço Chocolates 2027 (Varejo)</div>', unsafe_allow_html=True)
                 
                 if taxa_projetada is not None:
@@ -449,7 +457,6 @@ with col_dir:
                             df_choc_filtrado = df_chocolates[df_chocolates[col_marca] == marca_selecionada].dropna(subset=['Preco_Real'])
                             st.markdown(f"**Inflação Aplicada (IA):** <span style='color: #e74c3c;'>+{taxa_projetada:.2f}%</span>", unsafe_allow_html=True)
                             
-                            # Container do Scroll ajustado para caber perfeitamente nos 520px
                             with st.container(height=340):
                                 for _, row in df_choc_filtrado.iterrows():
                                     card = f"""
